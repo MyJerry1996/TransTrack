@@ -25,16 +25,16 @@ from datasets.data_prefetcher import data_prefetcher
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
                     device: torch.device, scaler: torch.cuda.amp.GradScaler,
-                    epoch: int, max_norm: float = 0, fp16=False):
+                    epoch: int, max_norm: float = 0, fp16=False, show_details=False):
     model.train()
     criterion.train()
     tensor_type = torch.cuda.HalfTensor if fp16 else torch.cuda.FloatTensor
-    metric_logger = utils.MetricLogger(delimiter="  ")
+    metric_logger = utils.MetricLogger(delimiter="  ", mask=show_details)
     metric_logger.add_meter('lr', utils.SmoothedValue(window_size=1, fmt='{value:.6f}'))
     metric_logger.add_meter('class_error', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     metric_logger.add_meter('grad_norm', utils.SmoothedValue(window_size=1, fmt='{value:.2f}'))
     header = 'Epoch: [{}]'.format(epoch)
-    print_freq = 10
+    print_freq = 100
 
     prefetcher = data_prefetcher(data_loader, device, prefetch=True)
     samples, targets = prefetcher.next()
@@ -83,7 +83,18 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         samples, targets = prefetcher.next()
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    print("Averaged stats:", metric_logger)
+
+
+    # if not show_details:
+    #     # vis = ["class_error", "loss", "loss_ce", "loss_bbox", "loss_giou"]
+    #     print("Averaged stats:", "class_error", metric_logger.class_error.value, 
+    #                              "loss", metric_logger.loss.value, 
+    #                              "loss_ce", metric_logger.loss_ce.value, 
+    #                              "loss_bbox", metric_logger.loss_bbox.value, 
+    #                              "loss_giou", metric_logger.loss_giou.value)
+    # else:
+    #     print("Averaged stats:", metric_logger)
+
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
@@ -161,6 +172,8 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, out
         res = {target['image_id'].item(): output for target, output in zip(targets, results)}
 
         # post process for track.
+        # import pdb
+        # pdb.set_trace()
         if tracker is not None:
             if frame_id == 1:
                 res_track = tracker.init_track(results[0])
@@ -206,4 +219,5 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, out
         stats['PQ_all'] = panoptic_res["All"]
         stats['PQ_th'] = panoptic_res["Things"]
         stats['PQ_st'] = panoptic_res["Stuff"]
+    # pdb.set_trace()
     return stats, coco_evaluator, res_tracks

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-GROUNDTRUTH=mot/train
+GROUNDTRUTH=mot17/train
 RESULTS=val/tracks
 GT_TYPE=_val_half
 THRESHOLD=-1

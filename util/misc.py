@@ -182,9 +182,10 @@ def reduce_dict(input_dict, average=True):
 
 
 class MetricLogger(object):
-    def __init__(self, delimiter="\t"):
+    def __init__(self, delimiter="\t", mask=True):
         self.meters = defaultdict(SmoothedValue)
         self.delimiter = delimiter
+        self.mask = mask
 
     def update(self, **kwargs):
         for k, v in kwargs.items():
@@ -252,6 +253,29 @@ class MetricLogger(object):
             if i % print_freq == 0 or i == len(iterable) - 1:
                 eta_seconds = iter_time.global_avg * (len(iterable) - i)
                 eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
+                # import pdb
+                # pdb.set_trace()
+                # if self.mask:
+                #     if torch.cuda.is_available():
+                #         print(log_msg.format(
+                #             i, len(iterable), eta=eta_string,
+                #             meters='loss: {:.2f} loss_ce: {:.2f} loss_bbox: {:.2f} loss_giou: {:.2f}'.format(
+                #             self.meters["loss"],
+                #             self.meters["loss_ce"],
+                #             self.meters["loss_bbox"],
+                #             self.meters["loss_giou"]),
+                #             time=str(iter_time), data=str(data_time),
+                #             memory=torch.cuda.max_memory_allocated() / MB))
+                #     else:
+                #         print(log_msg.format(
+                #             i, len(iterable), eta=eta_string,
+                #             meters='loss: {:.2f} loss_ce: {:.2f} loss_bbox: {:.2f} loss_giou: {:.2f}'.format(
+                #             self.meters["loss"],
+                #             self.meters["loss_ce"],
+                #             self.meters["loss_bbox"],
+                #             self.meters["loss_giou"]),
+                #             time=str(iter_time), data=str(data_time)))
+                # else:
                 if torch.cuda.is_available():
                     print(log_msg.format(
                         i, len(iterable), eta=eta_string,

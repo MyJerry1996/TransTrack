@@ -28,7 +28,7 @@ from models import Tracker
 from models import save_track
 
 from collections import defaultdict
-
+import wandb
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Deformable DETR Detector', add_help=False)
@@ -149,6 +149,9 @@ def get_args_parser():
     # multi-gpu test
     parser.add_argument('--start_id', default=1, type=int)
     parser.add_argument('--dist_video', default=False, action='store_true')
+
+    # info print
+    parser.add_argument('--easy_dis', default=False, action='store_true')
     return parser
 
 
@@ -161,6 +164,20 @@ def main(args):
     print(args)
 
     device = torch.device(args.device)
+
+    # set wandb
+    wandb.init(
+        # set the wandb project where this run will be logged
+        project="transtrack",
+        
+        # track hyperparameters and run metadata
+        config={
+        "learning_rate": args.lr,
+        "architecture": "transtrack",
+        "dataset": args.coco_path,
+        "epochs": args.epochs,
+        }
+    )
 
     # fix the seed for reproducibility
     seed = args.seed + utils.get_rank()
@@ -305,6 +322,8 @@ def main(args):
                                                           phase='eval', det_val=args.det_val, fp16=args.fp16)
         if args.output_dir:
 #             utils.save_on_master(coco_evaluator.coco_eval["bbox"].eval, output_dir / "eval.pth")
+            import pdb
+            pdb.set_trace()
             if res_tracks is not None:
                 print("Creating video index for {}.".format(args.dataset_file))
                 video_to_images = defaultdict(list)
@@ -337,7 +356,7 @@ def main(args):
         if args.distributed:
             sampler_train.set_epoch(epoch)
         train_stats = train_one_epoch(
-            model, criterion, data_loader_train, optimizer, device, scaler, epoch, args.clip_max_norm, fp16=args.fp16)
+            model, criterion, data_loader_train, optimizer, device, scaler, epoch, args.clip_max_norm, fp16=args.fp16, show_details=args.easy_dis)
         lr_scheduler.step()
         if args.output_dir:
             checkpoint_paths = [output_dir / 'checkpoint.pth']
@@ -378,7 +397,10 @@ def main(args):
 #                     for name in filenames:
 #                         torch.save(coco_evaluator.coco_eval["bbox"].eval,
 #                                    output_dir / "eval" / name)
-
+        
+        wandb.log({f'{k}' : v for k, v in log_stats.items()})
+    
+    wandb.finish()
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
